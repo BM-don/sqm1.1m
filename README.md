@@ -1,2 +1,1 @@
-# sqm1.1m
-Generate a width × drop price matrix for blinds and window coverings, with area rounded up to the nearest 0.1 m², live colour-matched cells, and one-click Excel/clipboard export.
+ single-file web tool that builds a price matrix across configurable width and drop ranges. Area (m²) is rounded up to the next 0.1 m² before applying the price per SQM, with optional currency symbols and VAT. Cells sharing the same value are colour-matched for quick scanning, and the full grid can be copied or exported to Excel. Built with vanilla HTML/JS — no build step.
