@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Price Table Generator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --accent: #00c2ff;
+      --accent-dim: rgba(0,194,255,0.12);
+      --accent-hover: #00d9ff;
+      --surface: #ffffff;
+      --surface-2: #f5f7fa;
+      --border: #e4e8f0;
+      --text-primary: #0f1117;
+      --text-secondary: #6b7280;
+      --text-sidebar: #c9d1e0;
+      --text-sidebar-label: #6b7a96;
+      --input-bg: #191d2b;
+      --input-border: #2a3047;
+      --error: #ff4f6d;
+      --green: #00c896;
+      --green-dim: rgba(0,200,150,0.1);
+      --header-bg: #0a3d5a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      display: flex;
+      background: var(--surface-2);
+      color: var(--text-primary);
+    }
+
+    /* ── SIDEBAR ─────────────────────────────────── */
+    .sidebar {
+      width: 300px;
+      min-width: 300px;
+      background: #0f1117;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .sidebar-header {
+      flex-shrink: 0;
+      padding: 24px 24px 18px;
+      border-bottom: 1px solid #1e2130;
+    }
+
+    .sidebar-logo { display: flex; align-items: center; gap: 10px; }
+
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(0,194,255,0.3);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .sidebar-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 15px; font-weight: 700; color: #fff; letter-spacing: -0.02em;
+    }
+
+    .sidebar-sub {
+      font-size: 10px; color: var(--text-sidebar-label);
+      letter-spacing: 0.1em; text-transform: uppercase; margin-top: 1px;
+    }
+
+    .sidebar-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 24px;
+      scrollbar-width: thin;
+      scrollbar-color: #2a3047 transparent;
+    }
+
+    .sidebar-body::-webkit-scrollbar { width: 4px; }
+    .sidebar-body::-webkit-scrollbar-thumb { background: #2a3047; border-radius: 2px; }
+
+    .section-label {
+      font-size: 10px; font-weight: 500;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-sidebar-label);
+      margin: 18px 0 8px;
+    }
+    .section-label:first-child { margin-top: 0; }
+
+    label {
+      display: block; font-size: 12px; font-weight: 500;
+      color: var(--text-sidebar); margin-bottom: 4px;
+    }
+    label .req { color: var(--accent); margin-left: 2px; }
+    .unit-note { color: var(--text-sidebar-label); font-size: 10px; }
+
+    input[type="number"], select {
+      width: 100%; padding: 9px 12px;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 7px;
+      color: var(--text-sidebar);
+      font-family: 'DM Mono', monospace;
+      font-size: 13px; outline: none;
+      transition: border-color 0.18s, box-shadow 0.18s;
+      appearance: none; -webkit-appearance: none;
+      margin-bottom: 10px;
+    }
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7a96' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 30px;
+    }
+    input[type="number"]:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0,194,255,0.1);
+    }
+    input[type="number"].error {
+      border-color: var(--error);
+      box-shadow: 0 0 0 3px rgba(255,79,109,0.1);
+    }
+    input[type="number"]::-webkit-inner-spin-button { opacity: 0.3; }
+
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .toggle-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 12px;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 7px; margin-bottom: 10px;
+      transition: border-color 0.18s;
+    }
+    .toggle-row:has(input:checked) { border-color: rgba(0,194,255,0.3); }
+    .toggle-row input[type="checkbox"] {
+      width: 15px; height: 15px; margin: 0;
+      accent-color: var(--accent); cursor: pointer; flex-shrink: 0;
+    }
+    .toggle-row label { margin: 0; font-size: 12px; color: var(--text-sidebar-label); white-space: nowrap; }
+    .toggle-row select, .toggle-row input[type="number"] {
+      flex: 1; margin-bottom: 0; background: transparent;
+      border: none; padding: 0; font-size: 12px; box-shadow: none !important;
+    }
+
+    .sidebar-footer {
+      flex-shrink: 0;
+      padding: 14px 24px 18px;
+      border-top: 1px solid #1e2130;
+    }
+
+    .generate-btn {
+      width: 100%; padding: 12px;
+      background: var(--accent); color: #061520;
+      border: none; border-radius: 8px;
+      font-family: 'Syne', sans-serif;
+      font-size: 13px; font-weight: 700;
+      letter-spacing: 0.04em; cursor: pointer;
+      transition: background 0.18s, transform 0.1s, box-shadow 0.18s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .generate-btn:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 4px 20px rgba(0,194,255,0.3);
+      transform: translateY(-1px);
+    }
+    .generate-btn:active { transform: translateY(0); }
+
+    .credit {
+      text-align: center; font-size: 10px;
+      color: var(--text-sidebar-label);
+      margin-top: 10px; letter-spacing: 0.05em;
+    }
+
+    /* ── MAIN ────────────────────────────────────── */
+    /*
+      The entire right column is a flex column.
+      .main-header is fixed height (flex-shrink:0).
+      .main-body takes all remaining height (flex:1, min-height:0).
+      Inside .main-body, the table-wrapper is THE ONE scroll container.
+    */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      min-width: 0;
+    }
+
+    .main-header {
+      flex-shrink: 0;
+      padding: 18px 28px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .main-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 18px; font-weight: 800;
+      color: var(--text-primary); letter-spacing: -0.03em;
+    }
+    .main-title span { color: var(--accent); }
+
+    .table-actions { display: none; gap: 8px; }
+    .table-actions.visible { display: flex; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px; border-radius: 7px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px; font-weight: 500;
+      cursor: pointer; transition: all 0.15s;
+      border: 1px solid transparent;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn-copy { background: #edf7ff; color: #0088bb; border-color: #c5e8f7; }
+    .btn-copy:hover { background: #ddf1ff; }
+    .btn-copy.copied { background: var(--green-dim); color: var(--green); border-color: rgba(0,200,150,0.3); }
+    .btn-excel { background: #f0faf5; color: #007a55; border-color: #b8e8d4; }
+    .btn-excel:hover { background: #e3f7ee; }
+
+    /* This is the key: main-body takes all remaining height */
+    .main-body {
+      flex: 1;
+      min-height: 0; /* without this, flex children ignore overflow */
+      position: relative;
+    }
+
+    /* ── EMPTY STATE ─────────────────────────────── */
+    .empty-state {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      text-align: center;
+      animation: fadeIn 0.4s ease;
+      overflow-y: auto;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .empty-state-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 22px; font-weight: 700;
+      color: var(--text-primary); letter-spacing: -0.03em;
+      margin-bottom: 10px;
+    }
+    .empty-state-desc {
+      font-size: 14px; color: var(--text-secondary);
+      max-width: 360px; line-height: 1.65; margin-bottom: 30px;
+    }
+    .empty-state-desc strong { color: #0f1117; font-weight: 600; }
+
+    .steps { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; max-width: 500px; }
+    .step {
+      display: flex; align-items: flex-start; gap: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 14px;
+      text-align: left; width: 148px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .step-num {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--accent-dim); border: 1px solid rgba(0,194,255,0.25);
+      color: var(--accent); font-family: 'DM Mono', monospace;
+      font-size: 11px; font-weight: 500;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .step-text { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+    .step-text strong { display: block; font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+
+    /* ── TABLE SCROLL CONTAINER ──────────────────── */
+    /*
+      Also absolutely fills .main-body.
+      overflow:auto on THIS element is what makes sticky work —
+      sticky position is relative to the nearest scrolling ancestor.
+    */
+    .table-wrapper {
+      position: absolute;
+      inset: 0;
+      overflow: auto; /* THE one scroll container */
+      display: none;  /* hidden until table is generated */
+    }
+
+    .table-wrapper.visible { display: block; }
+
+    /* ── TABLE ───────────────────────────────────── */
+    table {
+      border-collapse: collapse;
+      white-space: nowrap;
+      font-family: 'DM Mono', monospace;
+      font-size: 12.5px;
+    }
+
+    th, td {
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 9px 16px;
+      text-align: center;
+    }
+
+    /* Freeze row 1: column headers */
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--header-bg);
+      color: #fff;
+      font-size: 11px; font-weight: 500; letter-spacing: 0.04em;
+      border-color: rgba(255,255,255,0.08);
+    }
+
+    /* Freeze col 1: row headers */
+    tbody th {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background: #0a3d5a;
+      color: #80d4f0;
+      font-size: 11px; font-weight: 500;
+      text-align: left;
+      border-color: rgba(255,255,255,0.08);
+    }
+
+    /* Freeze top-left corner cell */
+    thead th:first-child {
+      position: sticky;
+      top: 0;
+      left: 0;
+      z-index: 3; /* above both row and column headers */
+      background: #071e2e;
+      color: var(--text-sidebar-label);
+      font-size: 10px; letter-spacing: 0.08em;
+      text-align: left;
+    }
+
+    tbody tr:nth-child(even) td { background: #fafbfd; }
+    tbody tr:nth-child(odd) td  { background: #ffffff; }
+    tbody td.value-match {
+      background: var(--match-bg) !important;
+      color: var(--match-text, var(--text-primary));
+      font-weight: 500;
+      box-shadow: inset 0 0 0 9999px rgba(255,255,255,0.08);
+    }
+    tbody tr:hover td { background: #edf7ff !important; }
+    tbody tr:hover td.value-match {
+      background: color-mix(in srgb, var(--match-bg) 78%, #ffffff) !important;
+    }
+    tbody tr:hover th { background: #094a6e; }
+    tbody tr.selected-row td {
+      background: #e7f8ff !important;
+    }
+    thead th.selected-column,
+    tbody th.selected-row-header {
+      background: #00c2ff !important;
+      color: #061520 !important;
+      font-weight: 700;
+    }
+    tbody td.selected-cell {
+      background: #fff2cc !important;
+      color: #0f1117;
+      font-weight: 700;
+      box-shadow: inset 0 0 0 2px #00c2ff;
+    }
+    tbody tr.selected-row td.value-match:not(.selected-cell) {
+      background: color-mix(in srgb, var(--match-bg) 55%, #e7f8ff) !important;
+    }
+    tbody td.selected-column:not(.selected-cell) {
+      background: #dff5ff !important;
+    }
+    tbody td.selected-column.value-match:not(.selected-cell) {
+      background: color-mix(in srgb, var(--match-bg) 55%, #dff5ff) !important;
+    }
+    td { color: var(--text-primary); }
+  </style>
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <div class="logo-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00c2ff" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+          </svg>
+        </div>
+        <div>
+          <div class="sidebar-title">Price Table</div>
+          <div class="sidebar-sub">Generator</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-body">
+      <div class="section-label" style="margin-top:0">Unit Configuration</div>
+      <label>Unit Type <span class="req">*</span></label>
+      <select id="unitType">
+        <option value="mm">Millimetres (mm)</option>
+        <option value="cm">Centimetres (cm)</option>
+        <option value="m">Metres (m)</option>
+      </select>
+
+      <div class="section-label">Width Range <span class="unit-note" id="widthUnitLabel">(mm)</span></div>
+      <div class="two-col">
+        <div>
+          <label>Min Width</label>
+          <input type="number" id="minWidth" placeholder="e.g. 500" />
+        </div>
+        <div>
+          <label>Max Width <span class="req">*</span></label>
+          <input type="number" id="maxWidth" placeholder="e.g. 3000" />
+        </div>
+      </div>
+
+      <div class="section-label">Drop Range <span class="unit-note" id="dropUnitLabel">(mm)</span></div>
+      <div class="two-col">
+        <div>
+          <label>Min Drop</label>
+          <input type="number" id="minDrop" placeholder="e.g. 500" />
+        </div>
+        <div>
+          <label>Max Drop <span class="req">*</span></label>
+          <input type="number" id="maxDrop" placeholder="e.g. 3000" />
+        </div>
+      </div>
+
+      <div class="section-label">Pricing</div>
+      <div class="two-col">
+        <div>
+          <label>Increment <span class="req">*</span></label>
+          <input type="number" id="increment" placeholder="e.g. 100" />
+        </div>
+        <div>
+          <label>Price / SQM <span class="req">*</span></label>
+          <input type="number" id="pricePerSqm" placeholder="e.g. 45" />
+        </div>
+      </div>
+
+      <div class="section-label">Options</div>
+      <div class="toggle-row">
+        <input type="checkbox" id="showCurrency" />
+        <label for="showCurrency">Currency</label>
+        <select id="currency">
+          <option value="$">$ USD</option>
+          <option value="£">£ GBP</option>
+          <option value="₹">₹ INR</option>
+          <option value="€">€ EUR</option>
+        </select>
+      </div>
+      <div class="toggle-row">
+        <input type="checkbox" id="includeVAT" />
+        <label for="includeVAT">Include VAT</label>
+        <input type="number" id="vatPercent" placeholder="Rate %" />
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="generate-btn" onclick="generateTable()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        Generate Table
+      </button>
+      <div class="credit">Created by Don Michael &copy;</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="main-header">
+      <div class="main-title">Price <span>Table</span></div>
+      <div class="table-actions" id="tableActions">
+        <button class="btn btn-copy" id="copyBtn" onclick="copyTable()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          Copy Table
+        </button>
+        <button class="btn btn-excel" onclick="downloadExcel()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="18" x2="12" y2="12"/>
+            <line x1="9" y1="15" x2="15" y2="15"/>
+          </svg>
+          Download Excel
+        </button>
+      </div>
+    </div>
+
+    <div class="main-body">
+
+      <!-- Empty state: absolutely fills main-body, hidden after first generate -->
+      <div class="empty-state" id="emptyState">
+        <svg width="210" height="150" viewBox="0 0 210 150" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:28px">
+          <rect x="18" y="18" width="174" height="114" rx="6" fill="#f5f7fa" stroke="#e4e8f0" stroke-width="1"/>
+          <rect x="18" y="18" width="174" height="28" rx="6" fill="#0a3d5a"/>
+          <rect x="18" y="42" width="174" height="4" fill="#0a3d5a"/>
+          <rect x="55" y="26" width="34" height="8" rx="2" fill="rgba(255,255,255,0.15)"/>
+          <rect x="96" y="26" width="34" height="8" rx="2" fill="rgba(255,255,255,0.15)"/>
+          <rect x="138" y="26" width="34" height="8" rx="2" fill="rgba(255,255,255,0.15)"/>
+          <rect x="26" y="26" width="22" height="8" rx="2" fill="rgba(255,255,255,0.07)"/>
+          <rect x="18" y="46" width="36" height="19" fill="#0c4a6e" opacity="0.65"/>
+          <rect x="18" y="65" width="36" height="19" fill="#0c4a6e" opacity="0.65"/>
+          <rect x="18" y="84" width="36" height="19" fill="#0c4a6e" opacity="0.65"/>
+          <rect x="18" y="103" width="36" height="19" fill="#0c4a6e" opacity="0.65"/>
+          <rect x="58" y="50" width="26" height="7" rx="2" fill="#e4e8f0"/>
+          <rect x="96" y="50" width="30" height="7" rx="2" fill="#e4e8f0"/>
+          <rect x="138" y="50" width="26" height="7" rx="2" fill="#e4e8f0"/>
+          <rect x="58" y="69" width="30" height="7" rx="2" fill="#ecf3ff"/>
+          <rect x="96" y="69" width="26" height="7" rx="2" fill="#ecf3ff"/>
+          <rect x="138" y="69" width="30" height="7" rx="2" fill="#ecf3ff"/>
+          <rect x="58" y="88" width="26" height="7" rx="2" fill="#e4e8f0"/>
+          <rect x="96" y="88" width="30" height="7" rx="2" fill="#e4e8f0"/>
+          <rect x="138" y="88" width="26" height="7" rx="2" fill="#e4e8f0"/>
+          <rect x="54" y="103" width="134" height="19" fill="#edf7ff" opacity="0.8"/>
+          <rect x="58" y="107" width="30" height="7" rx="2" fill="#00c2ff" opacity="0.35"/>
+          <rect x="96" y="107" width="26" height="7" rx="2" fill="#00c2ff" opacity="0.35"/>
+          <rect x="138" y="107" width="30" height="7" rx="2" fill="#00c2ff" opacity="0.35"/>
+          <line x1="54" y1="18" x2="54" y2="132" stroke="#e4e8f0" stroke-width="1"/>
+          <line x1="92" y1="18" x2="92" y2="132" stroke="#e4e8f0" stroke-width="1"/>
+          <line x1="133" y1="18" x2="133" y2="132" stroke="#e4e8f0" stroke-width="1"/>
+          <line x1="18" y1="65" x2="192" y2="65" stroke="#e4e8f0" stroke-width="1"/>
+          <line x1="18" y1="84" x2="192" y2="84" stroke="#e4e8f0" stroke-width="1"/>
+          <line x1="18" y1="103" x2="192" y2="103" stroke="#e4e8f0" stroke-width="1"/>
+          <circle cx="184" cy="30" r="5" fill="#00c2ff" opacity="0.85"/>
+        </svg>
+        <div class="empty-state-title">Your table will appear here</div>
+        <div class="empty-state-desc">
+          Configure your dimensions and pricing in the panel on the left, then click <strong>Generate Table</strong> to build your price matrix.
+        </div>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-text"><strong>Set dimensions</strong>Choose unit type, width and drop ranges</div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-text"><strong>Set pricing</strong>Enter increment size and price per SQM</div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-text"><strong>Generate</strong>Hit the button to render and export</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table scroll container: absolutely fills main-body, shown after generate -->
+      <div class="table-wrapper" id="tableWrapper">
+        <table id="priceTable">
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+
+    </div><!-- /.main-body -->
+  </div><!-- /.main -->
+
+  <script>
+    const unitTypeEl = document.getElementById('unitType');
+    unitTypeEl.addEventListener('change', () => {
+      const u = unitTypeEl.value;
+      document.getElementById('widthUnitLabel').textContent = `(${u})`;
+      document.getElementById('dropUnitLabel').textContent = `(${u})`;
+    });
+
+    let tableData = [];
+    const excelMatchColors = [
+      { bg: '#fce4d6', text: '#7a2e0e' },
+      { bg: '#fff2cc', text: '#665200' },
+      { bg: '#e2f0d9', text: '#385723' },
+      { bg: '#ddebf7', text: '#1f4e79' },
+      { bg: '#e4dfec', text: '#4f2f68' },
+      { bg: '#f4cccc', text: '#7f1d1d' },
+      { bg: '#d9ead3', text: '#274e13' },
+      { bg: '#cfe2f3', text: '#1c4587' },
+      { bg: '#eadcf8', text: '#351c75' },
+      { bg: '#fce5cd', text: '#783f04' },
+      { bg: '#d9eaf7', text: '#073763' },
+      { bg: '#d0e0e3', text: '#134f5c' }
+    ];
+
+    function buildValueColorMap(rows) {
+      const counts = new Map();
+
+      rows.slice(1).forEach(row => {
+        row.slice(1).forEach(value => {
+          const key = Number(value).toFixed(2);
+          counts.set(key, (counts.get(key) || 0) + 1);
+        });
+      });
+
+      const colorMap = new Map();
+      Array.from(counts.entries())
+        .filter(([, count]) => count > 1)
+        .sort(([a], [b]) => Number(a) - Number(b))
+        .forEach(([key], index) => {
+          colorMap.set(key, excelMatchColors[index % excelMatchColors.length]);
+        });
+
+      return colorMap;
+    }
+
+    function matchingValueStyle(value, colorMap) {
+      const match = colorMap.get(Number(value).toFixed(2));
+      if (!match) return '';
+
+      return ` class="value-match" style="--match-bg:${match.bg};--match-text:${match.text}"`;
+    }
+
+    function clearSelectionHighlight() {
+      document
+        .querySelectorAll('#priceTable .selected-row, #priceTable .selected-column, #priceTable .selected-row-header, #priceTable .selected-cell')
+        .forEach(el => el.classList.remove('selected-row', 'selected-column', 'selected-row-header', 'selected-cell'));
+    }
+
+    function highlightSelection(cell) {
+      clearSelectionHighlight();
+
+      const row = cell.closest('tr');
+      const columnIndex = cell.cellIndex;
+      const columnHeader = document.querySelector(`#tableHead th:nth-child(${columnIndex + 1})`);
+      const rowHeader = row.querySelector('th');
+
+      cell.classList.add('selected-cell');
+      row.classList.add('selected-row');
+      rowHeader?.classList.add('selected-row-header');
+      columnHeader?.classList.add('selected-column');
+
+      document.querySelectorAll(`#tableBody tr td:nth-child(${columnIndex + 1})`)
+        .forEach(td => td.classList.add('selected-column'));
+    }
+
+    // Track the currently selected cell for arrow navigation
+    let selectedCell = null;
+
+    document.getElementById('tableBody').addEventListener('click', event => {
+      const cell = event.target.closest('td');
+      if (!cell) return;
+      selectedCell = cell;
+      highlightSelection(cell);
+    });
+
+    // Excel-style arrow key navigation
+    document.addEventListener('keydown', event => {
+      if (!selectedCell) return;
+
+      // Don't interfere if focus is inside the sidebar
+      if (document.activeElement && document.activeElement.closest('.sidebar')) return;
+
+      const key = event.key;
+      if (!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(key)) return;
+
+      event.preventDefault();
+
+      const row = selectedCell.closest('tr');
+      const rows = Array.from(document.querySelectorAll('#tableBody tr'));
+      const rowIndex = rows.indexOf(row);
+      // cellIndex includes the th at col 0, data cells start at index 1
+      const colIndex = selectedCell.cellIndex; // 1-based among all cells in row
+
+      let nextCell = null;
+
+      if (key === 'ArrowRight') {
+        nextCell = row.cells[colIndex + 1] || null;
+        // skip the row-header th (it's not a td)
+        if (nextCell && nextCell.tagName === 'TH') nextCell = row.cells[colIndex + 2] || null;
+      } else if (key === 'ArrowLeft') {
+        const candidate = row.cells[colIndex - 1];
+        nextCell = (candidate && candidate.tagName === 'TD') ? candidate : null;
+      } else if (key === 'ArrowDown') {
+        const nextRow = rows[rowIndex + 1];
+        if (nextRow) nextCell = nextRow.cells[colIndex] || null;
+      } else if (key === 'ArrowUp') {
+        const prevRow = rows[rowIndex - 1];
+        if (prevRow) nextCell = prevRow.cells[colIndex] || null;
+      }
+
+      if (nextCell && nextCell.tagName === 'TD') {
+        selectedCell = nextCell;
+        highlightSelection(nextCell);
+        // Scroll into view smoothly
+        nextCell.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      }
+    });
+
+    // Enter key in any sidebar input triggers generateTable()
+    document.querySelector('.sidebar-body').addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        generateTable();
+      }
+    });
+
+    function generateTable() {
+      const unit = unitTypeEl.value;
+      const multiplier = unit === 'cm' ? 10 : unit === 'm' ? 1000 : 1;
+
+      const minWidth    = (parseFloat(document.getElementById('minWidth').value)    || 0) * multiplier;
+      const maxWidth    =  parseFloat(document.getElementById('maxWidth').value)         * multiplier;
+      const minDrop     = (parseFloat(document.getElementById('minDrop').value)     || 0) * multiplier;
+      const maxDrop     =  parseFloat(document.getElementById('maxDrop').value)          * multiplier;
+      const increment   =  parseFloat(document.getElementById('increment').value)        * multiplier;
+      const pricePerSqm =  parseFloat(document.getElementById('pricePerSqm').value);
+
+      const showCurrency   = document.getElementById('showCurrency').checked;
+      const currencySymbol = document.getElementById('currency').value;
+      const includeVAT     = document.getElementById('includeVAT').checked;
+      const vatPercent     = parseFloat(document.getElementById('vatPercent').value) || 0;
+
+      // Validate
+      document.querySelectorAll('input[type="number"]').forEach(i => i.classList.remove('error'));
+      const bad = v => isNaN(v) || v <= 0;
+      if (bad(maxWidth) || bad(maxDrop) || bad(increment) || bad(pricePerSqm)) {
+        if (bad(maxWidth))    document.getElementById('maxWidth').classList.add('error');
+        if (bad(maxDrop))     document.getElementById('maxDrop').classList.add('error');
+        if (bad(increment))   document.getElementById('increment').classList.add('error');
+        if (bad(pricePerSqm)) document.getElementById('pricePerSqm').classList.add('error');
+        return;
+      }
+
+      // Build data matrix for copy/export
+      tableData = [];
+      const headerRow = [unit];
+      for (let w = minWidth; w <= maxWidth; w += increment)
+        headerRow.push(Math.round(w));
+      tableData.push(headerRow);
+
+      for (let d = minDrop; d <= maxDrop; d += increment) {
+        const row = [Math.round(d)];
+        for (let w = minWidth; w <= maxWidth; w += increment) {
+          // Area in m², rounded to nearest 0.1 m² before pricing (e.g. 2.09 -> 2.1, 1.87 -> 1.9)
+          // Area in m², rounded UP to the next 0.1 m² before pricing (e.g. 3.04 -> 3.1, 1.87 -> 1.9)
+          const areaSqm = Math.ceil((w * d) / 100_000) / 10;
+          let price = areaSqm * pricePerSqm;
+          if (includeVAT) price *= (1 + vatPercent / 100);
+          row.push(parseFloat(price.toFixed(2)));
+        }
+        tableData.push(row);
+      }
+
+      const valueColorMap = buildValueColorMap(tableData);
+
+      // Build thead
+      const thead = document.getElementById('tableHead');
+      let thHTML = '<tr><th>Drop \\ Width</th>';
+      for (let w = minWidth; w <= maxWidth; w += increment)
+        thHTML += `<th>${Math.round(w)} ${unit}</th>`;
+      thHTML += '</tr>';
+      thead.innerHTML = thHTML;
+
+      // Build tbody
+      const tbody = document.getElementById('tableBody');
+      let tbHTML = '';
+      for (let d = minDrop; d <= maxDrop; d += increment) {
+        tbHTML += `<tr><th>${Math.round(d)} ${unit}</th>`;
+        for (let w = minWidth; w <= maxWidth; w += increment) {
+          // Area in m², rounded to nearest 0.1 m² before pricing (e.g. 2.09 -> 2.1, 1.87 -> 1.9)
+          // Area in m², rounded UP to the next 0.1 m² before pricing (e.g. 3.04 -> 3.1, 1.87 -> 1.9)
+          const areaSqm = Math.ceil((w * d) / 100_000) / 10;
+          let price = areaSqm * pricePerSqm;
+          if (includeVAT) price *= (1 + vatPercent / 100);
+          const display = showCurrency ? `${currencySymbol}${price.toFixed(2)}` : price.toFixed(2);
+          tbHTML += `<td${matchingValueStyle(price, valueColorMap)}>${display}</td>`;
+        }
+        tbHTML += '</tr>';
+      }
+      tbody.innerHTML = tbHTML;
+      clearSelectionHighlight();
+      selectedCell = null;
+
+      // Show table, hide empty state
+      document.getElementById('emptyState').style.display = 'none';
+      document.getElementById('tableWrapper').classList.add('visible');
+      document.getElementById('tableActions').classList.add('visible');
+    }
+
+    function copyTable() {
+      if (!tableData.length) return;
+      const tsv = tableData.map(r => r.join('\t')).join('\n');
+      navigator.clipboard.writeText(tsv).then(() => {
+        const btn = document.getElementById('copyBtn');
+        btn.classList.add('copied');
+        btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied!`;
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy Table`;
+        }, 2200);
+      });
+    }
+
+    function downloadExcel() {
+      if (!tableData.length) return;
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(tableData);
+      ws['!cols'] = tableData[0].map((_, i) => ({ wch: i === 0 ? 16 : 12 }));
+      XLSX.utils.book_append_sheet(wb, ws, 'Price Table');
+      const price = document.getElementById('pricePerSqm').value || '0';
+      const now = new Date();
+      const date = `${String(now.getDate()).padStart(2,'0')}-${String(now.getMonth()+1).padStart(2,'0')}-${now.getFullYear()}`;
+      const time = `${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
+      XLSX.writeFile(wb, `SQM ${price}_${date}_${time}.xlsx`);
+    }
+  </script>
+</body>
+</html>
