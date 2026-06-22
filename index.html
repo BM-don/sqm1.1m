@@ -585,20 +585,40 @@
     });
 
     let tableData = [];
-    const excelMatchColors = [
-      { bg: '#fce4d6', text: '#7a2e0e' },
-      { bg: '#fff2cc', text: '#665200' },
-      { bg: '#e2f0d9', text: '#385723' },
-      { bg: '#ddebf7', text: '#1f4e79' },
-      { bg: '#e4dfec', text: '#4f2f68' },
-      { bg: '#f4cccc', text: '#7f1d1d' },
-      { bg: '#d9ead3', text: '#274e13' },
-      { bg: '#cfe2f3', text: '#1c4587' },
-      { bg: '#eadcf8', text: '#351c75' },
-      { bg: '#fce5cd', text: '#783f04' },
-      { bg: '#d9eaf7', text: '#073763' },
-      { bg: '#d0e0e3', text: '#134f5c' }
-    ];
+
+    function getMatchingColor(index) {
+      // 5 distinct color categories to cycle through (excluding pink/magenta)
+      const categories = [
+        { min: 90,  max: 150 }, // Green
+        { min: 180, max: 240 }, // Blue/Cyan
+        { min: 30,  max: 65 },  // Orange/Yellow
+        { min: 0,   max: 20 },  // Red
+        { min: 250, max: 280 }  // Indigo/Lavender
+      ];
+      
+      const catIndex = index % categories.length;
+      const cat = categories[catIndex];
+      const cycle = Math.floor(index / categories.length);
+      
+      // Interpolate hue inside the category's range using the Golden Angle step
+      const range = cat.max - cat.min;
+      const hueStep = cycle * 137.508;
+      const hue = cat.min + Math.round(hueStep % range);
+      
+      // Vary saturation and lightness to distinguish between different cycles
+      const satPattern = [85, 60, 95, 70];
+      const litPattern = [88, 93, 84, 90];
+      const sat = satPattern[cycle % satPattern.length];
+      const lit = litPattern[cycle % litPattern.length];
+      
+      // Calculate text lightness dynamically for high contrast and readability
+      const textLit = lit >= 90 ? 10 : 15;
+      
+      return {
+        bg: `hsl(${hue}, ${sat}%, ${lit}%)`,
+        text: `hsl(${hue}, ${sat}%, ${textLit}%)`
+      };
+    }
 
     function buildValueColorMap(rows) {
       const counts = new Map();
@@ -615,7 +635,7 @@
         .filter(([, count]) => count > 1)
         .sort(([a], [b]) => Number(a) - Number(b))
         .forEach(([key], index) => {
-          colorMap.set(key, excelMatchColors[index % excelMatchColors.length]);
+          colorMap.set(key, getMatchingColor(index));
         });
 
       return colorMap;
