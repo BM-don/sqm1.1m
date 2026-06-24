@@ -587,29 +587,15 @@
     let tableData = [];
 
     function getMatchingColor(index) {
-      // 5 distinct color categories to cycle through (excluding pink/magenta)
-      const categories = [
-        { min: 90,  max: 150 }, // Green
-        { min: 180, max: 240 }, // Blue/Cyan
-        { min: 30,  max: 65 },  // Orange/Yellow
-        { min: 0,   max: 20 },  // Red
-        { min: 250, max: 280 }  // Indigo/Lavender
-      ];
+      // Use Golden Angle to distribute hues evenly across 360 degrees
+      const goldenAngle = 137.508;
+      const hue = Math.round((index * goldenAngle) % 360);
       
-      const catIndex = index % categories.length;
-      const cat = categories[catIndex];
-      const cycle = Math.floor(index / categories.length);
-      
-      // Interpolate hue inside the category's range using the Golden Angle step
-      const range = cat.max - cat.min;
-      const hueStep = cycle * 137.508;
-      const hue = cat.min + Math.round(hueStep % range);
-      
-      // Vary saturation and lightness to distinguish between different cycles
-      const satPattern = [85, 60, 95, 70];
-      const litPattern = [88, 93, 84, 90];
-      const sat = satPattern[cycle % satPattern.length];
-      const lit = litPattern[cycle % litPattern.length];
+      // Alternate saturation and lightness to make colors even more distinct
+      const satPattern = [85, 70, 95, 75];
+      const litPattern = [86, 92, 83, 89];
+      const sat = satPattern[index % satPattern.length];
+      const lit = litPattern[index % litPattern.length];
       
       // Calculate text lightness dynamically for high contrast and readability
       const textLit = lit >= 90 ? 10 : 15;
